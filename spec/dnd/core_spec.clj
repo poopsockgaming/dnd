@@ -2,6 +2,9 @@
   (:require [speclj.core :refer :all]
             [dnd.core :refer :all]))
 
-(describe "a test"
-  (it "FIXME, I fail."
-    (should= 0 1)))
+(describe "dnd simulator"
+  ;(it "test"
+  ;  (should= "hello" (test-user-input)))
+  (it "dnd simulator"
+    (should= "You won" (dnd 10 10)))
+  )
