@@ -1,4 +1,5 @@
-(ns dnd.core)
+(ns dnd.core
+  (:require [clojure.java.io :as io]))
 
 (declare -main)
 (declare movement)
@@ -106,34 +107,53 @@
   (let [new-potion-num (+ potion 1)]
     new-potion-num))
 
-(defn handle-move [state user-action potion]
+(defn conjv [col value] (conj (vec col) value))
+
+(defn find-potion? [] (= 1 (dice-roll 20)))
+(defn maybe-find-potion [state]
+  (if (find-potion?)
+    (-> (update state :potion increase-potion)
+        (update :messages conjv "You found a potion!"))
+    state))
+
+(defn handle-move [state user-action]
   (let [new-room (move (:room state) user-action)
         [x y] new-room]
-    (println "Location: " x y)
-    (if (= 1 (dice-roll 20))
-      (do (println "You found a potion!") (assoc state :room new-room :potion (increase-potion (:potion state))))
-      (assoc state :room new-room))))
+    (-> state
+        maybe-find-potion
+        (assoc :room new-room)
+        (update :messages conjv (str "Location: " x " " y)))))
+
+(defn inventory? [user-action] (or (= user-action "inventory") (= user-action "i")))
+(defn do-inventory [state] (println "Inventory:\n" (:potion state) "Potions") state)
+
+(defn kobold-encounter? [] (= 2 (dice-roll 20)))
+(defn do-kobold-encounter [state]
+  (kobold-start (get state :room) (get state :player) (get state :hp) (get state :ac) (get state :damage) (get state :potion))
+  state)
+
+(defn process-turn [state user-action]
+  (cond
+    (inventory? user-action) (do-inventory state)
+    ;(= 1 (dice-roll 20)) (troll-start (get state :room) (get state :player) (get state :hp) (get state :ac) (get state :damage) (get state :potion))
+    (kobold-encounter?) (do-kobold-encounter state)
+    :else (handle-move state user-action)))
 
 (defn movement [player location hp potion]
-  (loop [state {:room location :player player :hp hp :ac 12 :damage 5 :potion potion}]
-    (slurp player)
+  (loop [state {:room location :player player :hp hp :ac 12 :damage 5 :potion potion :messages []}]
+    ;(slurp player)
     ;; get, get-in assoc, assoc-in, update, update-in
-    (let [user-action (get-user-action)]
-      (if (or (= user-action "inventory") (= user-action "i"))
-        (do (println "Inventory:\n" potion "Potions") (recur state))
-        (cond
-          ;(= 1 (dice-roll 20)) (troll-start (get state :room) (get state :player) (get state :hp) (get state :ac) (get state :damage) (get state :potion))
-          (= 2 (dice-roll 20)) (kobold-start (get state :room) (get state :player) (get state :hp) (get state :ac) (get state :damage) (get state :potion))
-          :else
-          (let [new-state (handle-move state user-action potion)
-                ]
-            (spit player new-state)
-            (recur new-state)))))))
+    (doseq [message (:messages state)] (println message))
+    (let [user-action (get-user-action)
+          new-state   (process-turn state user-action)]
+      (spit player new-state)
+      (recur new-state))))
 
 (defn -main [& args]
+  ;(prn (read-string (slurp (io/resource "dnd/levels/1.edn"))))
   (println "Enter player (new) for new player: ")
   (let [name (read-line)]
-    (if (.exists (clojure.java.io/file name))
+    (if (.exists (io/file name))
       (let [state (slurp name)] (movement (get (read-string state) :player) (get (read-string state) :room) (get (read-string state) :hp) (get (read-string state) :potion)))
       (do (println "Enter new profile name:") (let [profile (read-line)] (spit profile {:room [0 0] :player profile :hp 10 :ac 12 :damage 5 :potion 0})
                                                                          (let [state (slurp profile)] (movement (get (read-string state) :player) (get (read-string state) :room) (get (read-string state) :hp) (get (read-string state) :potion))))))))
