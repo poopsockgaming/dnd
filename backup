@@ -26,7 +26,7 @@
     (println "\nYour HP:" hp)
     (println "Enemy HP:" enemy-hp)
     (cond
-      (<= enemy-hp 0) (do (println "You won!") (movement location player hp potion level))
+      (<= enemy-hp 0) (do (println "You won!") (movement player location hp potion level))
       (<= hp 0) (do (println "You died!") (System/exit 0))
       :else (do (println "What will you do? \nattack-(a)\ntake health potion-(t)\ninventory-(i)")
                 (let [player-action (read-line) roll (dice-roll 20)]
@@ -43,13 +43,12 @@
                     :else (do (println "\nSELECT A VALID OPTION.") (recur hp ac damage potion enemy-hp enemy-ac enemy-damage))))))))
 
 (defn enemy-starts-battle [location player hp ac damage potion level enemy-hp enemy-ac enemy-damage]
-  ;(loop [{:keys [hp ac damage ...]} state]
   (loop [hp hp ac ac damage damage potion potion enemy-hp enemy-hp enemy-ac enemy-ac enemy-damage enemy-damage]
     (println "\nYour HP:" hp)
     (println "Enemy HP:" enemy-hp)
     (cond
       (<= hp 0) (do (println "You died!") (System/exit 0))
-      (<= enemy-hp 0) (do (println "You won!") (movement location player hp potion level))
+      (<= enemy-hp 0) (do (println "You won!") (movement player location hp potion level))
       :else (do (println "What will you do? \nattack-(a)\ntake health potion-(t)\ninventory-(i)")
                 (let [player-action (read-line)]
                   (cond
@@ -94,10 +93,7 @@
                   "n" [0 1]
                   "s" [0 -1]})
 
-(defn potion-room? [room level]
-  (let [room-info (get level room)
-        items (:items room-info)]
-    (contains? (set items) :potion)))
+(defn conjv [col value] (conj (vec col) value))
 
 (defn move [[x y] direction state]
   (let [[dx dy] (get move-deltas direction)
@@ -107,8 +103,7 @@
     (cond
       (= [new-x new-y] (vec (last (keys level)))) (do (println "Next dungeon!") (level-selection (update state :level inc)))
 
-      (potion-room? [new-x new-y] level) (do (println "You found a potion!") (update state :potion inc) [new-x new-y])
-      ;(= new-x new-y (key level {:mobs [:kobold]})) (kobold-start (:room state) (:player state) (:hp state) (:ac state) (:damage state) (:potion state) (:level state))
+      ;(= new-x new-y (key level {:start? true})) (do (println "You found a potion!") (update state :potion inc))
 
       (clojure.string/includes? level (str [new-x new-y])) [new-x new-y]
       :else (do (println "Can't go that direction pick a new one") [x y]))))
@@ -117,9 +112,8 @@
   (let [new-potion-num (+ potion 1)]
     new-potion-num))
 
-(defn conjv [col value] (conj (vec col) value))
-
 (defn find-potion? [] (= 1 (dice-roll 20)))
+
 (defn maybe-find-potion [state]
   (if (find-potion?)
     (-> (update state :potion increase-potion)
@@ -130,13 +124,9 @@
   (let [new-room (move (:room state) user-action state)
         [x y] new-room]
     (-> state
-        maybe-find-potion
+        ;maybe-find-potion
         (assoc :room new-room)
-        (update :messages conjv (str "Location: " x " " y))
-        ;(assoc :messages (conjv (:message state) (str "Location: " x " " y)))
-        )))
-
-
+        (update :messages conjv (str "Location: " x " " y)))))
 
 (defn inventory? [user-action] (or (= user-action "inventory") (= user-action "i")))
 (defn do-inventory [state] (println "Inventory:\n" (:potion state) "Potions") state)
@@ -150,12 +140,11 @@
   (cond
     (inventory? user-action) (do-inventory state)
     ;(= 1 (dice-roll 20)) (troll-start (get state :room) (get state :player) (get state :hp) (get state :ac) (get state :damage) (get state :potion))
-    ;(kobold-encounter?) (do-kobold-encounter state)
+    (kobold-encounter?) (do-kobold-encounter state)
     :else (handle-move state user-action)))
 
-(defn movement [location player hp potion level]
-  (loop [state {:room location :player player :hp hp :ac 12 :damage 5 :potion potion :level level :messages []}]
-    ;(slurp player)
+(defn movement [player location hp potion level]
+  (loop [state {:room location :player player :hp hp :ac 10 :damage 5 :potion potion :level level :messages []}]
     ;; get, get-in assoc, assoc-in, update, update-in
     (doseq [message (:messages state)] (println message))
     (let [user-action (get-user-action)
@@ -164,14 +153,14 @@
       (recur new-state))))
 
 (defn level-selection [state]
-  (do (let [file-level (str "dnd/levels/" (get state :level) ".edn")
-            level-map (read-string (slurp (io/resource file-level)))
-            start-position (first (keys level-map))]
-        ;(println file-level)
-        ;(println level-map)
-        ;(println (vals level-map))
-        ;(println start-position)
-        (movement (vec start-position) (:player state) (:hp state) (:potion state) (:level state)))))
+  (let [file-level (str "dnd/levels/" (get state :level) ".edn")
+        level-map (read-string (slurp (io/resource file-level)))
+        start-position (first (keys level-map))]
+    (println file-level)
+    (println level-map)
+    (println (vals level-map))
+    (println start-position)
+    (movement (:player state) (vec start-position) (:hp state) (:potion state) (:level state))))
 
 (defn -main [& args]
   ;(prn (read-string (slurp (io/resource "dnd/levels/1.edn"))))
@@ -179,9 +168,10 @@
   (let [name (read-line)]
     (if (.exists (io/file name))
       (let [state (read-string (slurp name))]
-        (level-selection state))                            ;(level-selection (get (read-string state) :player) (get (read-string state) :room) (get (read-string state) :hp) (get (read-string state) :potion) (get (read-string state) :level)))
+        (level-selection state)) ;(level-selection (get (read-string state) :player) (get (read-string state) :room) (get (read-string state) :hp) (get (read-string state) :potion) (get (read-string state) :level)))
       (do (println "Enter new profile name:")
           (let [profile (read-line)]
-            (spit profile {:room [0 0] :player profile :hp 10 :ac 12 :damage 5 :potion 0 :level 1})
+            (spit profile {:room [0 0] :player profile :hp 10 :ac 12 :damage 5 :potion 0})
             (let [state (read-string (slurp profile))]
               (level-selection state)))))))
+
