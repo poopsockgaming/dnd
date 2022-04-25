@@ -1,4 +1,4 @@
-(ns dnd.core-spec
+(ns dnd.main-spec
   (:require [speclj.core :refer :all]
             [dnd.main :refer :all]
             [clojure.java.io :as io]
@@ -8,7 +8,7 @@
 (def state-level1 {:room [0 0] :player "test" :hp 10 :ac 12 :damage 5 :potion 0 :level 1 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
 (def state-level2 {:room [0 1] :player "test" :hp 10 :ac 12 :damage 5 :potion 1 :level 2 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
 (def state-level3 {:room [0 1] :player "test" :hp 10 :ac 12 :damage 0 :potion 1 :level 2 :battle 1 :enemy-hp 10 :enemy-ac 0 :enemy-damage 0 :initiative :player})
-(describe "MISC"
+(describe "main"
 
   (around [it] (with-redefs [clear-terminal (fn [])] (it)))
 
@@ -63,9 +63,6 @@
     (let [result (handle-move state-level2 "w")]
       (should= ["Location: -1 1"] (:messages result))
       (should= [-1 1] (:room result))))
-
-  (it "conjv"
-    (should= [1 2 3 4] (conjv [1 2 3] 4)))
 
   (it "potion room"
     (let [result (potion-room state-level2 -1 0)]
@@ -137,9 +134,6 @@
     (should= true (view-inventory? "inventory"))
     (should= false (view-inventory? "w")))
 
-  (it "Checks dice roll"
-    (should-contain (dice-roll 3) #{1 2 3}))
-
   (it "entering 'i' calls inventory function"
     (should= true (inventory? "i")))
 
@@ -178,23 +172,6 @@
           (should-contain "Enemy critical hit!" (:messages result))
           (should= 8 (:hp result)))))
     )
-
-  (it "start battle - player goes first"
-    (with-redefs [battle/initiative-roll (fn [] "first")]
-      (let [result (start-battle state-level1 {:enemy-hp 5 :enemy-ac 12 :enemy-damage 4 :name "kobold"})]
-        (should= true (:battle? result))
-        (should= 5 (:enemy-hp result))
-        (should= 12 (:enemy-ac result))
-        (should= 4 (:enemy-damage result))
-        (should= :player (:initiative result))
-        (should-not-contain :name result)
-        (should-contain "You are about to fight a kobold," (:messages result)))))
-
-  (it "start battle - mob goes first"
-    (with-redefs [battle/initiative-roll (fn [] "second")]
-      (let [result (start-battle state-level1 {:enemy-hp 5 :enemy-ac 12 :enemy-damage 4})]
-        (should= true (:battle? result))
-        (should= :enemy (:initiative result)))))
 
   (it "save!"
     (should= {:ac 12, :battle 1, :initiative :player, :level 1, :damage 5, :enemy-hp 0, :enemy-damage 0, :player "test", :enemy-ac 0, :hp 10, :room [0 0], :potion 0} (save! state-level1)))
@@ -238,9 +215,6 @@
   (it "enemy attacks critical hit"
     (with-redefs [core/dice-roll (fn [_] 20)]
       (should= {:ac 12, :battle 1, :initiative :player, :level 2, :messages ["Enemy rolled: 20" "Enemy critical hit!"], :damage 0, :enemy-hp 10, :enemy-damage 0, :player "test", :enemy-ac 0, :hp 10, :room [0 1], :potion 1} (enemy-attack2 state-level3))))
-
-  (it "add message"
-    (should= {:ac 12, :battle 1, :initiative :player, :level 1, :messages ["hello"], :damage 5, :enemy-hp 0, :enemy-damage 0, :player "test", :enemy-ac 0, :hp 10, :room [0 0], :potion 0} (add-message state-level1 "hello")))
 
   (it "potion roll"
     (should-contain (core/dice-roll 12) #{1 2 3 4 5 6 7 8 9 10 11 12}))
