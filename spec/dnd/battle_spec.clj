@@ -1,2 +1,2 @@
-(ns dnd.core-spec
+(ns dnd.battle-spec
   (:require [clojure.test :refer :all]))
