@@ -3,10 +3,15 @@
             [dnd.battle :as battle]
             [dnd.core :as core]))
 
-(def state-level1 {:room [0 0] :player "test" :hp 10 :ac 12 :damage 5 :potion 0 :level 1 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
+(def state-level1 {:room [0 0] :player "test" :hp 10 :ac 0 :damage 5 :potion 0 :key 0 :level 1 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
+(def state-level2 {:room [0 1] :player "test" :hp 10 :ac 12 :damage 5 :potion 1 :key 0 :level 2 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
+(def state-level3 {:room [0 1] :player "test" :hp 10 :ac 12 :damage 0 :potion 1 :key 0 :level 2 :battle 1 :enemy-hp 10 :enemy-ac 0 :enemy-damage 0 :initiative :player})
+(describe "main"
 
+  (around [it] (with-redefs [core/clear-terminal (fn [])
+                             core/color-text (fn [_ text] text)]
+                 (it)))
 
-(describe "battle"
   (it "Checks initiative roll for both rolling 20"
     (with-redefs [core/dice-roll (fn [_] 20)]
       (with-out-str (should= "first" (battle/initiative-roll)))))
@@ -27,4 +32,169 @@
       (let [result (battle/start-battle state-level1 {:enemy-hp 5 :enemy-ac 12 :enemy-damage 4})]
         (should= true (:battle? result))
         (should= :enemy (:initiative result)))))
+
+  (it "player attacks?"
+    (should= true (battle/player-attack? "a"))
+    (should= true (battle/player-attack? "attack"))
+    (should= false (battle/player-attack? "w")))
+
+  (it "player takes potion?"
+    (should= true (battle/player-take-potion? "q"))
+    (should= true (battle/player-take-potion? "quaff"))
+    (should= false (battle/player-take-potion? "w")))
+
+  (it "player views inventory?"
+    (should= true (battle/view-inventory? "i"))
+    (should= true (battle/view-inventory? "inventory"))
+    (should= false (battle/view-inventory? "w")))
+
+  (it "battle status"
+    (should= ["Your HP: 10          Enemy HP: 0\n"] (:messages (battle/battle-status state-level2))))
+
+  ;(it "player turn text"
+  ;  (should= {:ac 12, :battle 1, :initiative :player, :level 2, :messages ["What will you do? \nattack-(a)\ntake health potion-(t)\ninventory-(i)"], :damage 5, :enemy-hp 0, :enemy-damage 0, :player "test", :enemy-ac 0, :hp 10, :room [0 1], :potion 1} (player-turn-text state-level2)))
+
+  (it "player turn during battle"
+    (with-in-str "1"
+      (should= ["SELECT A VALID OPTION."] (:messages (battle/player-turn-during-battle state-level2)))))
+
+  (it "view inventory"
+    (should= ["Your HP: 10          Enemy HP: 0\n" "Inventory:\n1 Potions\n0 Keys"] (:messages (battle/view-inventory state-level2))))
+
+  (it "player attacks miss"
+    (with-redefs [core/dice-roll (fn [_] -1)]
+      (should= ["Your HP: 10          Enemy HP: 0\n" "Roll: -1\nMiss"] (:messages (battle/player-attacks state-level2)))))
+
+  (it "player attacks hits"
+    (with-redefs [core/dice-roll (fn [_] 1)]
+      (should= ["Your HP: 10          Enemy HP: 9\n" "You scratch the enemy for 1 damage!"] (:messages (battle/player-attacks state-level3)))))
+
+  (it "player attacks critical hit"
+    (with-redefs [core/dice-roll (fn [_] 20)]
+      (should= ["Your HP: 10          Enemy HP: -30\n" "You eviscerate the enemy for 40 damage!"] (:messages (battle/player-attacks state-level3)))))
+
+  (it "win results"
+    (should= ["Your HP: 10          Enemy HP: 0\n" "You won!"] (:messages (battle/win-results state-level1))))
+
+  (it "enemy attacks miss"
+    (with-redefs [core/dice-roll (fn [_] -1)]
+      (should= ["Your HP: 10          Enemy HP: 0\n" "Enemy rolled: -1" "Miss"] (:messages (battle/enemy-attack state-level2)))))
+
+  (it "enemy attack hits"
+    (with-redefs [core/dice-roll (fn [_] 19)]
+      (should= ["Your HP: -9          Enemy HP: 0\n" "Enemy rolled: 19" "The enemy eviscerates you for 19 damage"] (:messages (battle/enemy-attack state-level2)))))
+
+  (it "enemy attacks critical hit"
+    (with-redefs [core/dice-roll (fn [_] 20)]
+      (should= ["Your HP: -30          Enemy HP: 10\n" "Enemy rolled: 20" "The enemy eviscerates you for 40 damage"] (:messages (battle/enemy-attack state-level3)))))
+
+  (context "Colorful attack"
+    (it "1-2"
+      (with-redefs [core/dice-roll (fn [_] 1)]
+        (should= "You scratch the enemy for 1 damage!"
+                 (second (:messages (battle/player-attacks state-level1))))))
+
+    (it "3-4"
+      (with-redefs [core/dice-roll (fn [_] 3)]
+        (should= "You bruise the enemy for 3 damage!"
+                 (second (:messages (battle/player-attacks state-level1))))))
+
+    (it "5-6"
+      (with-redefs [core/dice-roll (fn [_] 5)]
+        (should= "You wound the enemy for 5 damage!"
+                 (second (:messages (battle/player-attacks state-level1))))))
+
+    (it "7-8"
+      (with-redefs [core/dice-roll (fn [_] 7)]
+        (should= "You pummel the enemy for 7 damage!"
+                 (second (:messages (battle/player-attacks state-level1))))
+        #_(should= [:damage 7]
+                   (first (:events (battle/player-attacks state-level1))))
+        ))
+
+    (it "9-10"
+      (with-redefs [core/dice-roll (fn [_] 9)]
+        (should= "You destroy the enemy for 9 damage!"
+                 (second (:messages (battle/player-attacks state-level1))))))
+
+    (it "11+"
+      (with-redefs [core/dice-roll (fn [_] 11)]
+        (should= "You eviscerate the enemy for 11 damage!"
+                 (second (:messages (battle/player-attacks state-level1))))))
+
+    (it "player attacks critical hit"
+      (with-redefs [core/dice-roll (fn [_] 20)]
+        (should= "You eviscerate the enemy for 40 damage!" (second (:messages (battle/player-attacks state-level1))))))
+
+
+    (it "colorful-attack changes enemy hp"
+      (should= 5 (:enemy-hp (battle/colorful-attack state-level3 "wound" 5))))
+
+    (it "enemy 1-2"
+      (with-redefs [core/dice-roll (fn [_] 1)]
+        (should= ["Your HP: 9          Enemy HP: 0\n" "Enemy rolled: 1" "The enemy scratches you for 1 damage"]
+                 (:messages (battle/enemy-attack state-level1)))))
+
+    (it "enemy 3-4"
+      (with-redefs [core/dice-roll (fn [_] 3)]
+        (should=  ["Your HP: 7          Enemy HP: 0\n" "Enemy rolled: 3" "The enemy bruises you for 3 damage"]
+                  (:messages (battle/enemy-attack state-level1)))))
+
+    (it "enemy 5-6"
+      (with-redefs [core/dice-roll (fn [_] 5)]
+        (should= ["Your HP: 5          Enemy HP: 0\n" "Enemy rolled: 5" "The enemy wounds you for 5 damage"]
+                 (:messages (battle/enemy-attack state-level1)))))
+
+    (it "enemy 7-8"
+      (with-redefs [core/dice-roll (fn [_] 7)]
+        (should= ["Your HP: 3          Enemy HP: 0\n" "Enemy rolled: 7" "The enemy pummels you for 7 damage"]
+                 (:messages (battle/enemy-attack state-level1)))
+        #_(should= [:damage 7]
+                   (first (:events (battle/player-attacks state-level1))))
+        ))
+
+    (it "enemy 9-10"
+      (with-redefs [core/dice-roll (fn [_] 9)]
+        (should= ["Your HP: 1          Enemy HP: 0\n" "Enemy rolled: 9" "The enemy destroys you for 9 damage"]
+                 (:messages (battle/enemy-attack state-level1)))))
+
+    (it "enemy 11+"
+      (with-redefs [core/dice-roll (fn [_] 11)]
+        (should= ["Your HP: -1          Enemy HP: 0\n" "Enemy rolled: 11" "The enemy eviscerates you for 11 damage"]
+                 (:messages (battle/enemy-attack state-level1)))))
+
+
+    )
+
+  #_(context "enemy-attack"
+
+      (it "enemy miss with impossible AC"
+        (with-redefs [core/dice-roll (fn [_] 19)]
+          (let [state {:hp 10 :ac 100 :enemy-damage 1}
+                result (battle/enemy-attack state)]
+            (should (map? result))
+            (should-contain "Enemy rolled: 19" (:messages result))
+            (should-contain ["Enemy rolled: 19" "Miss"] (:messages result))
+            (should= 10 (:hp result))
+            (should= :player (:initiative result)))))
+
+      (it "enemy hit with a 19"
+        (with-redefs [core/dice-roll (fn [_] 19)]
+          (let [state {:hp 10 :ac 1 :enemy-damage 1}
+                result (battle/enemy-attack state)]
+            (should (map? result))
+            (should= 2 (count (:messages result)))
+            (should-contain "Enemy rolled: 19" (:messages result))
+            (should-contain ["Enemy rolled: 19" "The enemy eviscerates you for 19 damage"] (:messages result))
+            (should= 9 (:hp result)))))
+
+      (it "enemy critical hit"
+        (with-redefs [core/dice-roll (fn [_] 20)]
+          (let [state {:hp 10 :ac 20 :enemy-damage 1}
+                result (battle/enemy-attack state)]
+            (should (map? result))
+            (should-contain "Enemy rolled: 20" (:messages result))
+            (should-contain ["Enemy rolled: 20" "The enemy eviscerates you for 40 damage"] (:messages result))
+            (should= 8 (:hp result)))))
+      )
   )

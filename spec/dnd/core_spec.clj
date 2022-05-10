@@ -8,7 +8,6 @@
 (it "conjv"
   (should= [1 2 3 4] (core/conjv [1 2 3] 4)))
 
-
 (it "add message"
   (should= ["hello"] (:messages (core/add-message {} "hello"))))
 )

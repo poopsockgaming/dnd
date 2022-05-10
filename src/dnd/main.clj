@@ -2,7 +2,8 @@
   (:require [clojure.java.io :as io]
             [clojure.java.shell :as shell]
             [dnd.battle :as battle]
-            [dnd.core :as core]))
+            [dnd.core :as core]
+            [dnd.ui :as ui]))
 
 (declare -main)
 (declare movement)
@@ -11,133 +12,77 @@
 (declare level)
 (declare player-turn-during-battle)
 
-(defn potion-roll []
-  (+ (core/dice-roll 4) (core/dice-roll 4) 4))
-
-(defn enemy-attack2 [state]
-  (let [enemy-roll (core/dice-roll 20)
-        state (core/add-message state (str "Enemy rolled: " enemy-roll))
-        state (assoc state :initiative :player)]
-    (cond
-      (= enemy-roll 20) (-> (core/add-message state "Enemy critical hit!")
-                            (update :hp - (* 2 (:enemy-damage state))))
-      (> enemy-roll (:ac state)) (-> (core/add-message state "Enemy hit!")
-                                     (update :hp - (:enemy-damage state)))
-      :else (core/add-message state "Enemy miss!"))))
-
-(defn win-results [state]
-  (-> (core/add-message state "You won!")
-  (assoc :battle? false)))
-
-(defn loss-results []
-  (do (println "You died!") (System/exit 0)))
-
-(defn player-attack? [player-action]
-  (or (= player-action "attack") (= player-action "a")))
-
-(defn player-take-potion? [player-action]
-  (or (= player-action "quaff") (= player-action "q")))
-
-(defn view-inventory? [player-action]
-  (or (= player-action "inventory") (= player-action "i")))
-
-(defn player-attacks [{:keys [damage enemy-ac] :as state}]
-  (if (> (core/dice-roll 20) enemy-ac)
-    (-> (core/add-message state "Hit!")
-        (update :enemy-hp - (core/dice-roll damage)))
-    (core/add-message state "Miss")))
-
-(defn player-takes-potion [{:keys [potion] :as state}]
-  (if (> potion 0)
-    (-> (core/add-message state "Taking health potion!")
-        (update :hp + (potion-roll))
-        (update :potion dec))
-    (core/add-message state "No health potion to take")))
-
-(defn view-inventory [{:keys [potion] :as state}]           ;; TODO - CRM: "Dont let enemy attack after viewing inventory"
-  (-> (core/add-message state (str "Inventory:\n" potion " Potions"))))
-
-(defn player-turn-text []
-  (println "What will you do? \nattack-(a)\ntake health potion-(t)\ninventory-(i)"))
-
-(defn clear-terminal []
-  (->> (shell/sh "/bin/sh" "-c" "clear <  /dev/null") :out (print "")))
-
-(defn player-turn-during-battle [state]
-  (player-turn-text)
-  (let [player-action (read-line)
-        state (cond
-                (player-attack? player-action) (player-attacks state)
-                (player-take-potion? player-action) (player-takes-potion state)
-                (view-inventory? player-action) (view-inventory state)
-                :else (core/add-message state "SELECT A VALID OPTION."))]
-    (clear-terminal)
-    (assoc state :initiative :enemy)))
-
-(defn battle-status [state]
-  (-> (core/add-message state (str (:player state)))
-      (core/add-message (str "Your HP: " (:hp state) "          " "Enemy HP: " (:enemy-hp state) "\n"))))
-
-(defn save! [state]
-  (spit (:player state) state)
-  state)
-
-(defn player-starts-battle [{:keys [hp enemy-hp] :as state}]
-  (let [state (save! state)
-        state (battle-status state)]
-    (cond
-      (<= enemy-hp 0) (win-results state)
-      (<= hp 0) (loss-results)
-      (= :enemy (:initiative state)) (enemy-attack2 state)
-      :else (player-turn-during-battle state))))
 
 (defn direction? [state]
   (let [[x y] (:room state)]
-  (if (level-includes? [x (inc y)] (level state))
-    (println "north(n)")
-    ())
-  (if (level-includes? [x (dec y)] (level state))
-    (println "south(s)")
-    ())
-  (if (level-includes? [(inc x) y] (level state))
-    (println "east(e)")
-    ())
-  (if (level-includes? [(dec x) y] (level state))
-    (println "west(w)")
-    ())))
+    (if (level-includes? [x (inc y)] (level state))
+      (println "north(n)")
+      ())
+    (if (level-includes? [x (dec y)] (level state))
+      (println "south(s)")
+      ())
+    (if (level-includes? [(inc x) y] (level state))
+      (println "east(e)")
+      ())
+    (if (level-includes? [(dec x) y] (level state))
+      (println "west(w)")
+      ())))
 
 (defn get-user-action-text [state]
   (core/add-message state "Where would you like to move?"))
 
 (defn incorrect-command-text [state]
-  (core/add-message state "Incorrect command"))
+  (core/add-message state (core/red-text "Incorrect command")))
 
 (defn get-user-action [state]
   (get-user-action-text state)
-    (direction? state)
+  (direction? state)
   (let [user-action (read-line)]
     (if (or (= user-action "n") (= user-action "s") (= user-action "e") (= user-action "w") (= user-action "i") (= user-action "d"))
       user-action
-      (do (incorrect-command-text state) (get-user-action state)))))
+      (do (core/clear-terminal) (-> (incorrect-command-text state)
+                                    (get-user-action))))))
 
 (def move-deltas {"e" [1 0]
                   "w" [-1 0]
                   "n" [0 1]
                   "s" [0 -1]})
 
+(def kobold {:enemy-hp 5 :enemy-ac 12 :enemy-damage 4 :name "kobold"})
+(def troll {:enemy-hp 84 :enemy-ac 15 :enemy-damage 29 :name "troll"})
+(def kobold-pair {:enemy-hp 10 :enemy-ac 12 :enemy-damage 8 :name "kobold pair"})
+(def kobold-group-three {:enemy-hp 15 :enemy-ac 12 :enemy-damage 12 :name "kobold group of 3"})
+(def troll-pair {:enemy-hp 168 :enemy-ac 15 :enemy-damage 58 :name "troll pair"})
+
 (defn next-dungeon? [room level]
   (= room (vec (last (keys level)))))
 
 (defn next-dungeon [state]
-  (-> (update state :level inc) (core/add-message "Next dungeon!")))
+  (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
+      (update :level inc)
+      (core/add-message (core/blue-text "Next dungeon!"))))
+
+(defn key-room? [room level]
+  (let [room-info (get level room)
+        items (:items room-info)]
+    (contains? (set items) :key)))
 
 (defn potion-room? [room level]
   (let [room-info (get level room)
         items (:items room-info)]
     (contains? (set items) :potion)))
 
-(defn potion-room [state new-x new-y]
-  (-> (update state :potion inc) (assoc :room [new-x new-y]) (core/add-message "You found a potion!")))
+(defn potion-room [state new-x new-y]                       ;; TODO - CRM: getting issue when going into potion room, exiting program, and then going back in
+  (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
+      (update :potion inc)
+      (assoc :room [new-x new-y])
+      (core/add-message (core/blue-text "You found a potion!"))))
+
+(defn key-room [state new-x new-y]
+  (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
+      (update :key inc)
+      (assoc :room [new-x new-y])
+      (core/add-message (core/blue-text "You found a key!"))))
 
 (defn kobold-room? [room level]
   (let [room-info (get level room)
@@ -149,18 +94,40 @@
         items (:mobs room-info)]
     (contains? (set items) :troll)))
 
+(defn two-kobolds? [room level]
+  (let [room-info (get level room)
+        items (:2 room-info)]
+    (contains? (set items) :kobold)))
+
+(defn three-kobolds? [room level]
+  (let [room-info (get level room)
+        items (:3 room-info)]
+    (contains? (set items) :kobold)))
+
+(defn two-trolls? [room level]
+  (let [room-info (get level room)
+        items (:2 room-info)]
+    (contains? (set items) :troll)))
+
+#_(defn kobold-count [room level state]
+    (let [room-info (get level room)
+          items (:2 room-info)]
+      (cond
+        (contains? (set items) :2) (battle/start-battle state {:enemy-hp 10 :enemy-ac 12 :enemy-damage 8 :name "kobold group"})
+        (contains? (set items) :3) (battle/start-battle state {:enemy-hp 15 :enemy-ac 12 :enemy-damage 12 :name "kobold group"})
+        :else (battle/start-battle state {:enemy-hp 20 :enemy-ac 12 :enemy-damage 16 :name "kobold group"})))
+
+    )
+
 (defn level [state]
   (read-string (slurp (io/resource (str "dnd/levels/" (:level state) ".edn")))))
 
 (defn level-includes? [room level]
   (clojure.string/includes? level (str room)))
 
-(def kobold {:enemy-hp 5 :enemy-ac 12 :enemy-damage 4 :name "kobold"})
-(def troll {:enemy-hp 84 :enemy-ac 15 :enemy-damage 29 :name "troll"})
 
 (defn move [{:keys [room] :as state} direction]
-  (clear-terminal)
-  ;(flush)
+  (core/clear-terminal)
   (let [[x y] room
         [dx dy] (get move-deltas direction)
         new-x (+ x dx)
@@ -169,25 +136,38 @@
     (cond
       (next-dungeon? [new-x new-y] level) (level-selection (next-dungeon state))
       (potion-room? [new-x new-y] level) (potion-room state new-x new-y)
+      (key-room? [new-x new-y] level) (key-room state new-x new-y)
       (kobold-room? [new-x new-y] level) (battle/start-battle state kobold)
       (troll-room? [new-x new-y] level) (battle/start-battle state troll)
+
+      (two-kobolds? [new-x new-y] level) (battle/start-battle state kobold-pair)
+      (three-kobolds? [new-x new-y] level) (battle/start-battle state kobold-group-three)
+      (two-trolls? [new-x new-y] level) (battle/start-battle state troll-pair)
+
       (level-includes? [new-x new-y] level) (assoc state :room [new-x new-y])
-      :else (core/add-message state "\nCan't go that direction pick a new one\n"))))
+      :else (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
+                (core/add-message "Can't go that direction pick a new one")))))
 
 (defn handle-move [state user-action]
   (let [state (move state user-action)
         [x y] (:room state)]
-    (core/add-message state (str "Location: " x " " y))))
+    (core/clear-terminal)
+    (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
+        (core/add-message (core/grey-text (str "Location: " x " " y))))))
 
 (defn inventory? [user-action] (or (= user-action "inventory") (= user-action "i")))
 
-(defn do-inventory [state] (println "Inventory:\n" (:potion state) "Potions") state)
+(defn do-inventory [state] (do (core/clear-terminal)
+                               (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
+                                   (core/add-message (core/blue-text (str "Inventory:\n" (:potion state) " Potions\n" (:key state) " Keys"))))))
 
 (defn drop-item? [user-action]
   (or (= user-action "drop") (= user-action "d")))
 
 (defn drop-item [state]
-  (-> (core/add-message state "You dropped a potion.")
+  (core/clear-terminal)
+  (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
+      (core/add-message (core/blue-text "You dropped a potion."))
       (update :potion dec)))
 
 (defn process-turn [state user-action]
@@ -198,14 +178,34 @@
 
 (defn movement [state]
   (loop [state state]
-    (doseq [message (:messages state)] (println message))
+    ;(core/save! state)
+    ;; ui/update
+    ;(clean-terminal)
+    (when (:battle? state) (println (core/color-text "42" (str "Your HP: " (:hp state) "          " "Enemy HP: " (:enemy-hp state) "\n"))))
+    ;(doseq [message (:messages state)] (println message))
+    ;; print user prompt
+    ; ---
     (let [state (dissoc state :messages)]
       (if (:battle? state)
-        (recur (player-starts-battle state))
+        (recur (battle/player-starts-battle state))
         (let [user-action (get-user-action state)
               new-state (process-turn state user-action)]
-          (save! new-state)
+          (core/save! new-state)                            ;; TODO - CRM: don't think I should be here
           (recur new-state))))))
+
+(defn process-action [state]
+  )
+
+;(defn tick [state]
+;  (ui/update state)                                         ;; This is the one and only place where the terminal updates
+;  (let [action (ui/get-user-action state)                   ;; this is the one and only place where user input is accepted
+;        new-state (process-action state action)]
+;    (core/save! new-state)))
+;
+;(defn run [state]
+;  (loop [state state]
+;    (when-not (:game-over? state)
+;      (recur (tick state)))))
 
 (defn open-level [file-level]
   (read-string (slurp (io/resource file-level))))
@@ -221,12 +221,12 @@
     #_(movement state)))
 
 (defn new-profile-text []
-  (println "Enter new profile name:"))
+  (println (core/yellow-text "Enter new profile name:")))
 
 (defn new-profile []
   (do (new-profile-text)
       (let [profile (read-line)]
-        (spit profile {:room [0 0] :player profile :hp 10 :ac 12 :damage 5 :potion 0 :level 1 :battle? false :enemy-hp 0 :enemy-ac 0 :enemy-damage 0})
+        (spit profile {:room [0 0] :player profile :hp 10 :ac 12 :damage 5 :potion 0 :key 0 :level 1 :battle? false :enemy-hp 0 :enemy-ac 0 :enemy-damage 0})
         (let [state (read-string (slurp profile))]
           state
           #_(level-selection state)))))
@@ -235,9 +235,10 @@
   (.exists (io/file name)))
 
 (defn menu-text []
-  (println "Enter player (new) for new player:"))
+  (println (core/yellow-text "Enter player (new) for new player:")))
 
 (defn -main [& _args]
+  ;(println (core/color-text "1" "test"))
   (menu-text)
   (let [name (read-line)]
     (let [state (if (file-exists? name) (read-string (slurp name)) (new-profile))
