@@ -1,4 +1,4 @@
-(ns dnd.ui
+(ns dnd.ui-spec
   (:require [speclj.core :refer :all]
             [dnd.main :as main]
             [clojure.java.io :as io]
