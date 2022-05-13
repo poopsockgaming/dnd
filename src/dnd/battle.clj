@@ -130,9 +130,9 @@
   (let [player-action (read-line)
         _ (core/clear-terminal)
         state (cond
-                (player-attack? player-action) (player-attacks state)
+                (player-attack? player-action)      (player-attacks state)
                 (player-take-potion? player-action) (player-takes-potion state)
-                (view-inventory? player-action) (view-inventory state)
+                (view-inventory? player-action)     (view-inventory state)
                 :else (core/add-message state (core/red-text "SELECT A VALID OPTION.")))]
     (assoc state :initiative :enemy)))
 

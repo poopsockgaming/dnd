@@ -9,4 +9,4 @@
 
 (defn get-user-action [state]
   (let [action (read-line)]
-    (clojure.core/update state :action action)))
+    (clojure.core/assoc state :action action)))

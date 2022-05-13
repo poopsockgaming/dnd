@@ -182,7 +182,7 @@
     ;; ui/update
     ;(clean-terminal)
     (when (:battle? state) (println (core/color-text "42" (str "Your HP: " (:hp state) "          " "Enemy HP: " (:enemy-hp state) "\n"))))
-    ;(doseq [message (:messages state)] (println message))
+    (doseq [message (:messages state)] (println message))
     ;; print user prompt
     ; ---
     (let [state (dissoc state :messages)]
@@ -194,7 +194,13 @@
           (recur new-state))))))
 
 (defn process-action [state]
-  )
+  (if (:battle? state)
+    (cond
+      (battle/player-attack? (:action state)) (battle/player-attacks state)
+      (battle/player-take-potion? (:action state)) (battle/player-takes-potion state)
+      (battle/view-inventory? (:action state)) (do-inventory state)
+      :else (core/add-message state (core/red-text "SELECT A VALID OPTION.")))
+    (process-turn state (:action state))))
 
 ;(defn tick [state]
 ;  (ui/update state)                                         ;; This is the one and only place where the terminal updates

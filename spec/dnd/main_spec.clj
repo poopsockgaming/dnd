@@ -157,8 +157,8 @@
   (it "2 kobolds"
     (should= true (two-kobolds? [-1 2] (read-string (slurp (io/resource (str "dnd/levels/3.edn")))))))
 
-  (it "3 kobolds"
-    (should= true (three-kobolds? [-1 1] (read-string (slurp (io/resource (str "dnd/levels/3.edn")))))))
+  ;(it "3 kobolds"
+  ;  (should= true (three-kobolds? [-1 1] (read-string (slurp (io/resource (str "dnd/levels/3.edn")))))))
 
   (it "2 trolls"
     (should= true (two-trolls? [-1 3] (read-string (slurp (io/resource (str "dnd/levels/3.edn")))))))
@@ -170,4 +170,13 @@
     (should= {:enemy-hp 15 :enemy-ac 12 :enemy-damage 12 :name "kobold group of 3"} kobold-group-three)
     (should= {:enemy-hp 168 :enemy-ac 15 :enemy-damage 58 :name "troll pair"} troll-pair))
 
+  (it "process action"
+    (should= ["HP: " "Inventory:\n Potions\n Keys"] (:messages (process-action {:battle? true :action "i"})))
+    (should= ["Taking health potion!"] (:messages (process-action {:hp 5 :potion 1 :battle? true :action "q"})))
+    (with-redefs [(core/dice-roll (fn [_] 19))]
+      (should= ["You scratch the enemy for 1 damage!"] (:messages (process-action {:battle? true :enemy-ac 1 :enemy-hp 10 :damage 1 :action "a"}))))
+      (should= ["HP: " "Location: 0 1"] (:messages (process-action {:level 1 :room [0 0] :action "n"})))
+    (should= ["HP: " "You dropped a potion."] (:messages (process-action {:level 1 :room [0 0] :action "d" :potion 1})))
+    (should= ["HP: " "Inventory:\n1 Potions\n1 Keys"] (:messages (process-action {:level 1 :room [0 0] :action "i" :potion 1 :key 1})))
+    )
   )
