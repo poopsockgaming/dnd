@@ -155,12 +155,6 @@
     (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
         (core/add-message (core/grey-text (str "Location: " x " " y))))))
 
-(defn inventory? [user-action] (or (= user-action "inventory") (= user-action "i")))
-
-(defn do-inventory [state] (do (core/clear-terminal)
-                               (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
-                                   (core/add-message (core/blue-text (str "Inventory:\n" (:potion state) " Potions\n" (:key state) " Keys"))))))
-
 (defn drop-item? [user-action]
   (or (= user-action "drop") (= user-action "d")))
 
@@ -172,19 +166,15 @@
 
 (defn process-turn [state user-action]
   (cond
-    (inventory? user-action) (do-inventory state)
+    (core/inventory? user-action) (core/do-inventory state)
     (drop-item? user-action) (drop-item state)
     :else (handle-move state user-action)))
 
 (defn movement [state]
   (loop [state state]
     ;(core/save! state)
-    ;; ui/update
-    ;(clean-terminal)
     (when (:battle? state) (println (core/color-text "42" (str "Your HP: " (:hp state) "          " "Enemy HP: " (:enemy-hp state) "\n"))))
     (doseq [message (:messages state)] (println message))
-    ;; print user prompt
-    ; ---
     (let [state (dissoc state :messages)]
       (if (:battle? state)
         (recur (battle/player-starts-battle state))
@@ -193,25 +183,29 @@
           (core/save! new-state)                            ;; TODO - CRM: don't think I should be here
           (recur new-state))))))
 
+
+
 (defn process-action [state]
   (if (:battle? state)
     (cond
       (battle/player-attack? (:action state)) (battle/player-attacks state)
       (battle/player-take-potion? (:action state)) (battle/player-takes-potion state)
-      (battle/view-inventory? (:action state)) (do-inventory state)
+      (core/inventory? (:action state)) (core/do-inventory state)
       :else (core/add-message state (core/red-text "SELECT A VALID OPTION.")))
     (process-turn state (:action state))))
 
-;(defn tick [state]
-;  (ui/update state)                                         ;; This is the one and only place where the terminal updates
-;  (let [action (ui/get-user-action state)                   ;; this is the one and only place where user input is accepted
-;        new-state (process-action state action)]
-;    (core/save! new-state)))
-;
-;(defn run [state]
-;  (loop [state state]
-;    (when-not (:game-over? state)
-;      (recur (tick state)))))
+(defn tick [state]
+  (ui/update state)
+  (ui/get-user-action state)
+  (let [new-state (process-action state)]
+    (core/save! new-state)))
+
+(defn run [state]
+  (loop [state state]
+    (when-not (:game-over? state)
+      (recur (tick state)))))
+
+
 
 (defn open-level [file-level]
   (read-string (slurp (io/resource file-level))))
@@ -244,9 +238,9 @@
   (println (core/yellow-text "Enter player (new) for new player:")))
 
 (defn -main [& _args]
-  ;(println (core/color-text "1" "test"))
   (menu-text)
   (let [name (read-line)]
     (let [state (if (file-exists? name) (read-string (slurp name)) (new-profile))
           state (if (:battle? state) state (level-selection state))]
+      ;(run state)
       (movement state))))

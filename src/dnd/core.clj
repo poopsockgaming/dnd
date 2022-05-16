@@ -27,3 +27,8 @@
 (defn conjv [col value] (conj (vec col) value))
 
 (defn add-message [state message] (update state :messages conjv message))
+
+(defn inventory? [user-action] (or (= user-action "inventory") (= user-action "i")))
+
+(defn do-inventory [state] (do (clear-terminal)
+                               (add-message state (blue-text (str "Inventory:\n" (:potion state) " Potions\n" (:key state) " Keys")))))

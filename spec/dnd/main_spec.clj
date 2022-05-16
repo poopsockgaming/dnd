@@ -134,13 +134,13 @@
     (should= () (direction? state-level1)))
 
   (it "entering 'i' calls inventory function"
-    (should= true (inventory? "i")))
+    (should= true (core/inventory? "i")))
 
   (it "inventory lists items correctly"
-    (with-out-str (should-contain :potion (do-inventory state-level1))
+    (with-out-str (should-contain :potion (core/do-inventory state-level1))
                   (should= 0 (:potion state-level1))
                   (should= 0 (:key state-level1))
-                  (should= ["HP: 10" "Inventory:\n0 Potions\n0 Keys"] (:messages (do-inventory state-level1)))))
+                  (should= ["Inventory:\n0 Potions\n0 Keys"] (:messages (core/do-inventory state-level1)))))
 
   (it "save!"
     (should= {:key 0, :ac 12, :battle 1, :initiative :player, :level 1, :damage 5, :enemy-hp 0, :enemy-damage 0, :player "test", :enemy-ac 0, :hp 10, :room [0 0], :potion 0} (core/save! state-level1)))
@@ -171,12 +171,12 @@
     (should= {:enemy-hp 168 :enemy-ac 15 :enemy-damage 58 :name "troll pair"} troll-pair))
 
   (it "process action"
-    (should= ["HP: " "Inventory:\n Potions\n Keys"] (:messages (process-action {:battle? true :action "i"})))
+    (should= ["Inventory:\n Potions\n Keys"] (:messages (process-action {:battle? true :action "i"})))
     (should= ["Taking health potion!"] (:messages (process-action {:hp 5 :potion 1 :battle? true :action "q"})))
     (with-redefs [(core/dice-roll (fn [_] 19))]
       (should= ["You scratch the enemy for 1 damage!"] (:messages (process-action {:battle? true :enemy-ac 1 :enemy-hp 10 :damage 1 :action "a"}))))
       (should= ["HP: " "Location: 0 1"] (:messages (process-action {:level 1 :room [0 0] :action "n"})))
     (should= ["HP: " "You dropped a potion."] (:messages (process-action {:level 1 :room [0 0] :action "d" :potion 1})))
-    (should= ["HP: " "Inventory:\n1 Potions\n1 Keys"] (:messages (process-action {:level 1 :room [0 0] :action "i" :potion 1 :key 1})))
+    (should= ["Inventory:\n1 Potions\n1 Keys"] (:messages (process-action {:level 1 :room [0 0] :action "i" :potion 1 :key 1})))
     )
   )

@@ -46,8 +46,8 @@
                                    (or (= enemy-damage 9) (= enemy-damage 10)) (enemy-colorful-attack state "destroys" enemy-damage enemy-roll)
                                    :else (enemy-colorful-attack state "eviscerates" enemy-damage enemy-roll))
       :else (-> #_(battle-status state)
-                (core/add-message state (str "Enemy rolled: " (core/blue-text enemy-roll)))
-                (core/add-message "Miss")))))
+              (core/add-message state (str "Enemy rolled: " (core/blue-text enemy-roll)))
+              (core/add-message "Miss")))))
 #_(cond
     (= enemy-roll 20) (-> (core/add-message state (core/red-text "Enemy critical hit!"))
                           (update :hp - (* 2 (:enemy-damage state))))
@@ -58,8 +58,8 @@
 (defn win-results [state]
   (core/clear-terminal)
   (-> #_(battle-status state)
-      (core/add-message state (core/green-text "You won!"))
-      (assoc :battle? false)))
+    (core/add-message state (core/green-text "You won!"))
+    (assoc :battle? false)))
 
 (defn loss-results [state]
   (core/clear-terminal)
@@ -74,15 +74,13 @@
 (defn player-take-potion? [player-action]
   (or (= player-action "quaff") (= player-action "q")))
 
-(defn view-inventory? [player-action]
-  (or (= player-action "inventory") (= player-action "i")))
+#_(defn view-inventory? [user-action]
+    (or (= user-action "inventory") (= user-action "i")))
 
 (defn colorful-attack [state word attack-roll]
   (core/clear-terminal)
   (-> (update state :enemy-hp - attack-roll)
-      #_(battle-status)
       (core/add-message (core/green-text (str "You " word " the enemy for " attack-roll " damage!")))
-      #_(core/add-event state [:damage attack-roll])
       #_(core/add-message (core/yellow-text "Press enter to continue")))
   )
 
@@ -106,7 +104,52 @@
                              (or (= attack-roll 9) (= attack-roll 10)) (colorful-attack state "destroy" attack-roll)
                              :else (colorful-attack state "eviscerate" attack-roll))
       :else (-> #_(battle-status state)
-                (core/add-message state (str "Roll: " (core/blue-text (str ac-roll)) "\nMiss"))))))
+              (core/add-message state (str "Roll: " (core/blue-text (str ac-roll)) "\nMiss"))))))
+
+#_(defn attack [state]
+  (let [ac-roll (core/dice-roll 20)]
+    (if (= :player (:initiative state))
+      (let [attack-roll (core/dice-roll (:damage state))
+            enemy-ac (:enemy-ac state)] (cond
+                                          (= ac-roll 20) (let [attack-roll (* 2 attack-roll)]
+                                                           (cond
+                                                             (or (= (* 2 attack-roll) 1) (= (* 2 attack-roll) 2)) (colorful-attack state "scratch" (* 2 attack-roll)) ;; TODO - CRM: have tests for all outcomes
+                                                             (or (= (* 2 attack-roll) 3) (= (* 2 attack-roll) 4)) (colorful-attack state "bruise" (* 2 attack-roll))
+                                                             (or (= (* 2 attack-roll) 5) (= (* 2 attack-roll) 6)) (colorful-attack state "wound" (* 2 attack-roll))
+                                                             (or (= (* 2 attack-roll) 7) (= (* 2 attack-roll) 8)) (colorful-attack state "pummel" (* 2 attack-roll))
+                                                             (or (= (* 2 attack-roll) 9) (= (* 2 attack-roll) 10)) (colorful-attack state "destroy" (* 2 attack-roll))
+                                                             :else (colorful-attack state "eviscerate" attack-roll)))
+                                          (> ac-roll enemy-ac) (cond
+                                                                 (or (= attack-roll 1) (= attack-roll 2)) (colorful-attack state "scratch" attack-roll)
+                                                                 (or (= attack-roll 3) (= attack-roll 4)) (colorful-attack state "bruise" attack-roll)
+                                                                 (or (= attack-roll 5) (= attack-roll 6)) (colorful-attack state "wound" attack-roll)
+                                                                 (or (= attack-roll 7) (= attack-roll 8)) (colorful-attack state "pummel" attack-roll)
+                                                                 (or (= attack-roll 9) (= attack-roll 10)) (colorful-attack state "destroy" attack-roll)
+                                                                 :else (colorful-attack state "eviscerate" attack-roll))
+                                          :else (-> #_(battle-status state)
+                                                  (core/add-message state (str "Roll: " (core/blue-text (str ac-roll)) "\nMiss")))))
+      (let [enemy-roll (core/dice-roll 20)
+            state (assoc state :initiative :player)
+            enemy-damage (core/dice-roll (:enemy-damage state))]
+        (cond
+          (= enemy-roll 20) (let [attack-roll (* 2 enemy-damage)]
+                              (cond
+                                (or (= (* 2 attack-roll) 1) (= (* 2 attack-roll) 2)) (enemy-colorful-attack state "scratches" (* 2 attack-roll) enemy-roll)
+                                (or (= (* 2 attack-roll) 3) (= (* 2 attack-roll) 4)) (enemy-colorful-attack state "bruises" (* 2 attack-roll) enemy-roll)
+                                (or (= (* 2 attack-roll) 5) (= (* 2 attack-roll) 6)) (enemy-colorful-attack state "wounds" (* 2 attack-roll) enemy-roll)
+                                (or (= (* 2 attack-roll) 7) (= (* 2 attack-roll) 8)) (enemy-colorful-attack state "pummels" (* 2 attack-roll) enemy-roll)
+                                (or (= (* 2 attack-roll) 9) (= (* 2 attack-roll) 10)) (enemy-colorful-attack state "destroys" (* 2 attack-roll) enemy-roll)
+                                :else (enemy-colorful-attack state "eviscerates" attack-roll enemy-roll)))
+          (> enemy-roll (:ac state)) (cond
+                                       (or (= enemy-damage 1) (= enemy-damage 2)) (enemy-colorful-attack state "scratches" enemy-damage enemy-roll)
+                                       (or (= enemy-damage 3) (= enemy-damage 4)) (enemy-colorful-attack state "bruises" enemy-damage enemy-roll)
+                                       (or (= enemy-damage 5) (= enemy-damage 6)) (enemy-colorful-attack state "wounds" enemy-damage enemy-roll)
+                                       (or (= enemy-damage 7) (= enemy-damage 8)) (enemy-colorful-attack state "pummels" enemy-damage enemy-roll)
+                                       (or (= enemy-damage 9) (= enemy-damage 10)) (enemy-colorful-attack state "destroys" enemy-damage enemy-roll)
+                                       :else (enemy-colorful-attack state "eviscerates" enemy-damage enemy-roll))
+          :else (-> #_(battle-status state)
+                  (core/add-message state (str "Enemy rolled: " (core/blue-text enemy-roll)))
+                  (core/add-message "Miss")))))))
 
 (defn player-takes-potion [{:keys [potion] :as state}]
   (if (> potion 0)
@@ -116,13 +159,7 @@
         (core/add-message (core/green-text "Taking health potion!")))
     (core/add-message state (core/red-text "No health potion to take"))))
 
-(defn view-inventory [state]           ;; TODO - CRM: "Dont let enemy attack after viewing inventory"
-  ;(core/clear-terminal)
-  (-> #_(battle-status state)
-      (core/add-message state (core/blue-text (str "Inventory:\n" (:potion state) " Potions\n" (:key state) " Keys")))))
-
 (defn player-turn-text [state]
-  ;(println (core/color-text "42" (str "Your HP: " (:hp state) "          " "Enemy HP: " (:enemy-hp state) "\n")))
   (println (core/yellow-text "What will you do? \nattack-(a)\ntake health potion-(q)\ninventory-(i)")))
 
 (defn player-turn-during-battle [state]
@@ -130,9 +167,9 @@
   (let [player-action (read-line)
         _ (core/clear-terminal)
         state (cond
-                (player-attack? player-action)      (player-attacks state)
+                (player-attack? player-action) (player-attacks state)
                 (player-take-potion? player-action) (player-takes-potion state)
-                (view-inventory? player-action)     (view-inventory state)
+                (core/inventory? player-action) (core/do-inventory state)
                 :else (core/add-message state (core/red-text "SELECT A VALID OPTION.")))]
     (assoc state :initiative :enemy)))
 
@@ -146,7 +183,7 @@
       (= :enemy (:initiative state)) (enemy-attack state)
       :else (player-turn-during-battle state #_(battle-status state)))))
 
-(defn initiative-roll []
+(defn initiative-roll []                                    ;; TODO - CRM: Assign numbers to fighters with 1 going first
   (let [player-initiative-roll (core/dice-roll 20) enemy-initiative-roll (core/dice-roll 20)]
     (println (core/blue-text (str "Your initiative roll was " player-initiative-roll " and the enemies roll was " enemy-initiative-roll)))
     (cond
@@ -157,7 +194,6 @@
 (defn start-battle [state mob]
   (let [state (-> (assoc state :battle? true)
                   (merge (dissoc mob :name))
-                  #_(battle-status)
                   (core/add-message (str "You are about to fight a " (:name mob) ",")))]
     (if (= (initiative-roll) "first")
       (let [state (assoc state :initiative :player)] state)
