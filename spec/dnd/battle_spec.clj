@@ -7,6 +7,9 @@
 (def state-level2 {:room [0 1] :player "test" :hp 10 :ac 12 :damage 5 :potion 1 :key 0 :level 2 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
 (def state-level3 {:room [0 1] :player "test" :hp 10 :ac 12 :damage 20 :potion 1 :key 0 :level 2 :battle 1 :enemy-hp 10 :enemy-ac 0 :enemy-damage 0 :initiative :player})
 (def state-level4 {:room [0 1] :player "test" :hp 10 :ac 0 :damage 20 :potion 1 :key 0 :level 2 :battle 1 :enemy-hp 10 :enemy-ac 0 :enemy-damage 20 :initiative :enemy})
+
+(def state :undefined)
+
 (describe "battle"
 
   (around [it] (with-redefs [core/clear-terminal (fn [])
@@ -45,9 +48,9 @@
     (should= false (battle/player-take-potion? "w")))
 
   #_(it "player views inventory?"
-    (should= true (battle/view-inventory? "i"))
-    (should= true (battle/view-inventory? "inventory"))
-    (should= false (battle/view-inventory? "w")))
+      (should= true (battle/view-inventory? "i"))
+      (should= true (battle/view-inventory? "inventory"))
+      (should= false (battle/view-inventory? "w")))
 
   (it "battle status"
     (should= ["Your HP: 10          Enemy HP: 0\n"] (:messages (battle/battle-status state-level2))))
@@ -138,8 +141,8 @@
 
     (it "enemy 3-4"
       (with-redefs [core/dice-roll (fn [_] 3)]
-        (should=  ["Your HP: 7          Enemy HP: 0\n" "Enemy rolled: 3" "The enemy bruises you for 3 damage"]
-                  (:messages (battle/enemy-attack state-level1)))))
+        (should= ["Your HP: 7          Enemy HP: 0\n" "Enemy rolled: 3" "The enemy bruises you for 3 damage"]
+                 (:messages (battle/enemy-attack state-level1)))))
 
     (it "enemy 5-6"
       (with-redefs [core/dice-roll (fn [_] 5)]
@@ -164,13 +167,100 @@
         (should= ["Your HP: -1          Enemy HP: 0\n" "Enemy rolled: 11" "The enemy eviscerates you for 11 damage"]
                  (:messages (battle/enemy-attack state-level1)))))
 
-
     )
 
-  #_(it "both sides attack"
+  (context "initiative"
+
+    (it "roll initiative for a creature"
+      (let [result (battle/roll-initiative {:name "kobold"})]
+        (should-contain :initiative result)
+        (should< 0 (:initiative result))
+        (should>= 20 (:initiative result))))
+
+    (it "one mob"
+      (let [state {:mobs   [{:name "kobold"}]
+                   :player {:name "Sven"}}
+            result (battle/roll-initiatives state)]
+        (should-contain :initiative (get-in result [:mobs 0]))
+        (should-contain :initiative (:player result))))
+
+    (it "multiple mobs"
+      (let [state {:mobs   [{:name "kobold"}
+                            {:name "kobold"}]
+                   :player {:name "Sven"}}
+            result (battle/roll-initiatives state)]
+        (should-contain :initiative (get-in result [:mobs 0]))
+        (should-contain :initiative (get-in result [:mobs 1]))
+        (should-contain :initiative (:player result))))
+
+    (it "turn order"
+      (let [state {:mobs   [{:name "kobold1" :initiative 1}
+                            {:name "kobold2" :initiative 2}
+                            {:name "kobold3" :initiative 3}]
+                   :player {:name "Sven" :initiative 4}}
+            result (battle/turn-order state)]
+        (should= [{:name "Sven" :initiative 4}
+                  {:name "kobold3" :initiative 3}
+                  {:name "kobold2" :initiative 2}
+                  {:name "kobold1" :initiative 1}]
+                 result))
+      )
+    )
+
+  (context "make-attack"
+
+    (with state {:mobs [{:name "kobold" :ac 10 :hp 10 :damage 10}]
+                 :player {:name "smurf" :ac 10 :hp 10 :damage 10}})
+
+    (it "miss"
+      (with-redefs [battle/attack-roll (fn [] 1)]
+        (let [result (battle/make-attack @state [:mobs 0] [:player])]
+          (should= 10 (get-in result [:player :hp])))))
+
+    (it "hit"
+      (with-redefs [battle/attack-roll (fn [] 11)
+                    battle/damage-roll (fn [max] 5)]
+        (let [result (battle/make-attack @state [:mobs 0] [:player])]
+          (should= 5 (get-in result [:player :hp])))))
+
+    (it "miss messages"
+      (with-redefs [battle/attack-roll (fn [] 1)]
+        (let [result (battle/make-attack @state [:mobs 0] [:player])]
+          (should-contain (str "kobold misses " (core/blue-text "1"))
+                          (:messages result)))))
+
+    (it "hit player message"
+      (with-redefs [battle/attack-roll (fn [] 11)
+                    battle/damage-roll (fn [max] 5)]
+        (let [result (battle/make-attack @state [:mobs 0] [:player])]
+          (should-contain (core/red-text "kobold wounds smurf for 5 damage")
+                          (:messages result)))))
+
+    (it "hit mob message"
+      (with-redefs [battle/attack-roll (fn [] 11)
+                    battle/damage-roll (fn [max] 5)]
+        (let [result (battle/make-attack @state [:player] [:mobs 0])]
+          (should-contain (core/green-text "smurf wounds kobold for 5 damage")
+                          (:messages result)))))
+
+    (it "damage adjectives"
+      (should= "scratches" (battle/damage-adjective 1))
+      (should= "scratches" (battle/damage-adjective 2))
+      (should= "bruises" (battle/damage-adjective 3))
+      (should= "bruises" (battle/damage-adjective 4))
+      (should= "wounds" (battle/damage-adjective 5))
+      (should= "wounds" (battle/damage-adjective 6))
+      (should= "pummels" (battle/damage-adjective 7))
+      (should= "pummels" (battle/damage-adjective 8))
+      (should= "destroys" (battle/damage-adjective 9))
+      (should= "destroys" (battle/damage-adjective 10))
+      (should= "eviscerates" (battle/damage-adjective 11)))
+    )
+
+  (it "both sides attack"
     (with-redefs [core/dice-roll (fn [_] 1)]
-    (should= "You scratch the enemy for 1 damage!" (first (:messages (battle/attack state-level3))))
-    (should= "Enemy rolled: 1" (second (:messages (battle/attack state-level4))))))
+      (should= "You scratch the enemy for 1 damage!" (first (:messages (battle/attack state-level3))))
+      (should= "Enemy rolled: 1" (second (:messages (battle/attack state-level4))))))
 
   #_(context "enemy-attack"
 

@@ -130,8 +130,11 @@
   (core/clear-terminal)
   (let [[x y] room
         [dx dy] (get move-deltas direction)
+        _ (prn "[dx dy]: " [dx dy])
         new-x (+ x dx)
+        _ (prn "new-x: " new-x)
         new-y (+ y dy)
+        _ (prn "new-y: " new-y)
         level (level state)]
     (cond
       (next-dungeon? [new-x new-y] level) (level-selection (next-dungeon state))
@@ -151,7 +154,7 @@
 (defn handle-move [state user-action]
   (let [state (move state user-action)
         [x y] (:room state)]
-    (core/clear-terminal)
+    (core/clear-terminal)                                   ;; TODO - CRM: dont want
     (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
         (core/add-message (core/grey-text (str "Location: " x " " y))))))
 
@@ -168,7 +171,7 @@
   (cond
     (core/inventory? user-action) (core/do-inventory state)
     (drop-item? user-action) (drop-item state)
-    :else (handle-move state user-action)))
+    :else (handle-move state (:action state))))
 
 (defn movement [state]
   (loop [state state]
@@ -195,9 +198,10 @@
     (process-turn state (:action state))))
 
 (defn tick [state]
+  ;; pre-player-battle here?
   (ui/update state)
-  (ui/get-user-action state)
-  (let [new-state (process-action state)]
+  (let [new-state (ui/get-user-action state)
+        new-state (process-action new-state)]
     (core/save! new-state)))
 
 (defn run [state]
@@ -242,5 +246,5 @@
   (let [name (read-line)]
     (let [state (if (file-exists? name) (read-string (slurp name)) (new-profile))
           state (if (:battle? state) state (level-selection state))]
-      ;(run state)
-      (movement state))))
+      (run state)
+      #_(movement state))))

@@ -106,7 +106,7 @@
       :else (-> #_(battle-status state)
               (core/add-message state (str "Roll: " (core/blue-text (str ac-roll)) "\nMiss"))))))
 
-#_(defn attack [state]
+(defn attack [state]
   (let [ac-roll (core/dice-roll 20)]
     (if (= :player (:initiative state))
       (let [attack-roll (core/dice-roll (:damage state))
@@ -198,3 +198,55 @@
     (if (= (initiative-roll) "first")
       (let [state (assoc state :initiative :player)] state)
       (let [state (assoc state :initiative :enemy)] state))))
+
+(defn damage-adjective [damage]
+  (cond
+    (or (= damage 1) (= damage 2)) "scratches"
+    (or (= damage 3) (= damage 4)) "bruises"
+    (or (= damage 5) (= damage 6)) "wounds"
+    (or (= damage 7) (= damage 8)) "pummels"
+    (or (= damage 9) (= damage 10)) "destroys"
+    :else "eviscerates"))
+
+(defn attack-roll [] (core/dice-roll 20))
+(defn damage-roll [attacker] (core/dice-roll (:damage attacker)))
+
+(defn make-attack [state attacker-path defender-path]
+  (let [attacker (get-in state attacker-path)
+        defender (get-in state defender-path)
+        defender-hp-path (conj defender-path :hp)
+        damage (damage-roll attacker)
+        attack-roll (attack-roll)
+        color-fn (if (= [:player] attacker-path) core/green-text core/red-text)]
+    (if (< (:ac defender) attack-roll)
+      (-> (update-in state defender-hp-path - damage)
+          (core/add-message (color-fn (str (:name attacker) " " (damage-adjective damage) " " (:name defender) " for " damage " damage"))))
+      (core/add-message state (str (:name attacker) " misses " (core/blue-text attack-roll))))))
+
+(defn turn-order [state]
+  (->> (conj (:mobs state) (:player state))
+       (sort-by :initiative)
+       reverse))
+
+(defn roll-initiative [creature]
+  (assoc creature :initiative (core/dice-roll 20)))
+
+(defn roll-initiatives [state]
+  (-> (update state :player roll-initiative)
+      (update :mobs (fn [mobs] (mapv roll-initiative mobs)))))
+
+(defn process-battle []
+  ;; assume that all mobs and player have initiative
+  ;; pre-player-battle ----
+  ;; for each mob with initiative higher than player:
+  ;;  - the mob make-attack on player
+  ;;  - if player dies, :game-over? true, stop battle
+  ;; player take turn, possibly attacks a mob
+  ;; post-player-battle -----
+  ;; for each mob with initiative lowe than player:
+  ;;  - the mob makes-attack on player
+  ;;  - if player dies, :game-over? true, stop battle
+
+
+
+  )
