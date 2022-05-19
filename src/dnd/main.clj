@@ -8,25 +8,23 @@
 (declare -main)
 (declare movement)
 (declare level-selection)
-(declare level-includes?)
-(declare level)
 (declare player-turn-during-battle)
 
 
-(defn direction? [state]
-  (let [[x y] (:room state)]
-    (if (level-includes? [x (inc y)] (level state))
-      (println "north(n)")
-      ())
-    (if (level-includes? [x (dec y)] (level state))
-      (println "south(s)")
-      ())
-    (if (level-includes? [(inc x) y] (level state))
-      (println "east(e)")
-      ())
-    (if (level-includes? [(dec x) y] (level state))
-      (println "west(w)")
-      ())))
+;(defn direction? [state]
+;  (let [[x y] (:room state)]
+;    (if (level-includes? [x (inc y)] (level state))
+;      (println "north(n)")
+;      ())
+;    (if (level-includes? [x (dec y)] (level state))
+;      (println "south(s)")
+;      ())
+;    (if (level-includes? [(inc x) y] (level state))
+;      (println "east(e)")
+;      ())
+;    (if (level-includes? [(dec x) y] (level state))
+;      (println "west(w)")
+;      ())))
 
 (defn get-user-action-text [state]
   (core/add-message state "Where would you like to move?"))
@@ -36,7 +34,7 @@
 
 (defn get-user-action [state]
   (get-user-action-text state)
-  (direction? state)
+  (ui/direction? state)
   (let [user-action (read-line)]
     (if (or (= user-action "n") (= user-action "s") (= user-action "e") (= user-action "w") (= user-action "i") (= user-action "d"))
       user-action
@@ -119,23 +117,20 @@
 
     )
 
-(defn level [state]
-  (read-string (slurp (io/resource (str "dnd/levels/" (:level state) ".edn")))))
+;(defn level [state]
+;  (read-string (slurp (io/resource (str "dnd/levels/" (:level state) ".edn")))))
 
-(defn level-includes? [room level]
-  (clojure.string/includes? level (str room)))
+;(defn level-includes? [room level]
+;  (clojure.string/includes? level (str room)))
 
 
 (defn move [{:keys [room] :as state} direction]
   (core/clear-terminal)
   (let [[x y] room
         [dx dy] (get move-deltas direction)
-        _ (prn "[dx dy]: " [dx dy])
         new-x (+ x dx)
-        _ (prn "new-x: " new-x)
         new-y (+ y dy)
-        _ (prn "new-y: " new-y)
-        level (level state)]
+        level (ui/level state)]
     (cond
       (next-dungeon? [new-x new-y] level) (level-selection (next-dungeon state))
       (potion-room? [new-x new-y] level) (potion-room state new-x new-y)
@@ -147,24 +142,21 @@
       (three-kobolds? [new-x new-y] level) (battle/start-battle state kobold-group-three)
       (two-trolls? [new-x new-y] level) (battle/start-battle state troll-pair)
 
-      (level-includes? [new-x new-y] level) (assoc state :room [new-x new-y])
-      :else (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
-                (core/add-message "Can't go that direction pick a new one")))))
+      (ui/level-includes? [new-x new-y] level) (assoc state :room [new-x new-y])
+      :else (-> (core/add-message state "Can't go that direction pick a new one")))))
 
 (defn handle-move [state user-action]
   (let [state (move state user-action)
         [x y] (:room state)]
     (core/clear-terminal)                                   ;; TODO - CRM: dont want
-    (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
-        (core/add-message (core/grey-text (str "Location: " x " " y))))))
+    (-> (core/add-message state (core/grey-text (str "Location: " x " " y))))))
 
 (defn drop-item? [user-action]
   (or (= user-action "drop") (= user-action "d")))
 
 (defn drop-item [state]
   (core/clear-terminal)
-  (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
-      (core/add-message (core/blue-text "You dropped a potion."))
+  (-> (core/add-message state (core/blue-text "You dropped a potion."))
       (update :potion dec)))
 
 (defn process-turn [state user-action]
@@ -200,7 +192,7 @@
 (defn tick [state]
   ;; pre-player-battle here?
   (ui/update state)
-  (let [new-state (ui/get-user-action state)
+  (let [new-state (ui/get-user-action (ui/delete-messages state))
         new-state (process-action new-state)]
     (core/save! new-state)))
 
