@@ -46,7 +46,7 @@
                   "n" [0 1]
                   "s" [0 -1]})
 
-(def kobold {:enemy-hp 5 :enemy-ac 12 :enemy-damage 4 :name "kobold"})
+(def kobold {:hp 5 :ac 12 :damage 4 :name "kobold"})
 (def troll {:enemy-hp 84 :enemy-ac 15 :enemy-damage 29 :name "troll"})
 (def kobold-pair {:enemy-hp 10 :enemy-ac 12 :enemy-damage 8 :name "kobold pair"})
 (def kobold-group-three {:enemy-hp 15 :enemy-ac 12 :enemy-damage 12 :name "kobold group of 3"})
@@ -222,7 +222,7 @@
 (defn new-profile []
   (do (new-profile-text)
       (let [profile (read-line)]
-        (spit profile {:room [0 0] :player profile :hp 10 :ac 12 :damage 5 :potion 0 :key 0 :level 1 :battle? false :enemy-hp 0 :enemy-ac 0 :enemy-damage 0})
+        (spit profile {:room [0 0] :player {:name profile :hp 10 :ac 12 :damage 5} :potion 0 :key 0 :level 1 :battle? false :mobs []}) ;{:room [0 0] :player profile :hp 10 :ac 12 :damage 5 :potion 0 :key 0 :level 1 :battle? false :enemy-hp 0 :enemy-ac 0 :enemy-damage 0}
         (let [state (read-string (slurp profile))]
           state
           #_(level-selection state)))))

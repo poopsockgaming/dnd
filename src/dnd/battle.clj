@@ -176,7 +176,7 @@
 (defn player-starts-battle [{:keys [hp enemy-hp] :as state}]
   (let [state (core/save! state)                            ;; TODO - CRM: Don't think I should be here
         #_state #_(battle-status state)]
-    ;(enter-to-continue)
+    (enter-to-continue)
     (cond
       (<= enemy-hp 0) (win-results state)
       (<= hp 0) (loss-results state)
@@ -193,7 +193,7 @@
 
 (defn start-battle [state mob]
   (let [state (-> (assoc state :battle? true)
-                  (merge (dissoc mob :name))
+                  (conj :mobs mob)
                   (core/add-message (str "You are about to fight a " (:name mob) ",")))]
     (if (= (initiative-roll) "first")
       (let [state (assoc state :initiative :player)] state)

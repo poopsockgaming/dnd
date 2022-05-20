@@ -3,7 +3,8 @@
             [dnd.main :refer :all]
             [clojure.java.io :as io]
             [dnd.battle :as battle]
-            [dnd.core :as core]))
+            [dnd.core :as core]
+            [dnd.ui :as ui]))
 
 (def state-level1 {:room [0 0] :player "test" :hp 10 :ac 12 :damage 5 :potion 0 :key 0 :level 1 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
 (def state-level2 {:room [0 1] :player "test" :hp 10 :ac 12 :damage 5 :potion 1 :key 0 :level 2 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
@@ -37,7 +38,7 @@
   (it "new profile data"
     (with-in-str "test"
       (with-out-str
-        (should= {:key 0, :ac 12, :battle? false, :level 1, :damage 5, :enemy-hp 0, :enemy-damage 0, :player "test", :enemy-ac 0, :hp 10, :room [0 0], :potion 0}
+        (should= {:room [0 0], :player {:name "test", :hp 10, :ac 12, :damage 5}, :potion 0, :key 0, :level 1, :battle? false, :mobs []}
                  (new-profile)))))
 
   (it "level selection"
@@ -61,11 +62,11 @@
 
   (it "handle move"
     (let [result (handle-move state-level1 "n")]
-      (should= "HP: 10" (first (:messages result)))
-      (should= "Location: 0 1" (second (:messages result)))
+      ;(should= "HP: 10" (first (:messages result)))
+      (should= "Location: 0 1" (first (:messages result)))
       (should= [0 1] (:room result)))
     (let [result (handle-move state-level2 "w")]
-      (should= "Location: -1 1" (second (:messages result)))
+      (should= "Location: -1 1" (first (:messages result)))
       (should= [-1 1] (:room result))))
 
   (it "potion room"
@@ -85,8 +86,8 @@
 
   (it "drop item movement"
     (let [result (drop-item state-level2)]
-      (should= "HP: 10" (first (:messages result)))
-      (should= "You dropped a potion." (second (:messages result)))
+      ;(should= "HP: 10" (first (:messages result)))
+      (should= "You dropped a potion." (first (:messages result)))
       (should= 0 (:potion result))))
 
   (it "drop item?"
@@ -111,8 +112,8 @@
     (should= false (kobold-room? [0 1] (read-string (slurp (io/resource (str "dnd/levels/2.edn")))))))
 
   (it "room exists?"
-    (should= true (level-includes? [-1 1] (read-string (slurp (io/resource (str "dnd/levels/2.edn"))))))
-    (should= false (level-includes? [5 5] (read-string (slurp (io/resource (str "dnd/levels/2.edn")))))))
+    (should= true (ui/level-includes? [-1 1] (read-string (slurp (io/resource (str "dnd/levels/2.edn"))))))
+    (should= false (ui/level-includes? [5 5] (read-string (slurp (io/resource (str "dnd/levels/2.edn")))))))
 
   (it "move deltas"
     (should= [1 0] (move-deltas "e"))
@@ -131,7 +132,7 @@
     (should= ["Incorrect command"] (:messages (incorrect-command-text state-level1))))
 
   (it "directions?"                                         ;; TODO - CRM: write better test
-    (should= () (direction? state-level1)))
+    (should= () (ui/direction? state-level1)))
 
   (it "entering 'i' calls inventory function"
     (should= true (core/inventory? "i")))
@@ -164,7 +165,7 @@
     (should= true (two-trolls? [-1 3] (read-string (slurp (io/resource (str "dnd/levels/3.edn")))))))
 
   (it "enemy stats"
-    (should= {:enemy-hp 5 :enemy-ac 12 :enemy-damage 4 :name "kobold"} kobold)
+    (should= {:hp 5 :ac 12 :damage 4 :name "kobold"} kobold)
     (should= {:enemy-hp 84 :enemy-ac 15 :enemy-damage 29 :name "troll"} troll)
     (should= {:enemy-hp 10 :enemy-ac 12 :enemy-damage 8 :name "kobold pair"} kobold-pair)
     (should= {:enemy-hp 15 :enemy-ac 12 :enemy-damage 12 :name "kobold group of 3"} kobold-group-three)
@@ -175,8 +176,8 @@
     (should= ["Taking health potion!"] (:messages (process-action {:hp 5 :potion 1 :battle? true :action "q"})))
     (with-redefs [(core/dice-roll (fn [_] 19))]
       (should= ["You scratch the enemy for 1 damage!"] (:messages (process-action {:battle? true :enemy-ac 1 :enemy-hp 10 :damage 1 :action "a"}))))
-      (should= ["HP: " "Location: 0 1"] (:messages (process-action {:level 1 :room [0 0] :action "n"})))
-    (should= ["HP: " "You dropped a potion."] (:messages (process-action {:level 1 :room [0 0] :action "d" :potion 1})))
+      (should= ["Location: 0 1"] (:messages (process-action {:level 1 :room [0 0] :action "n"})))
+    (should= ["You dropped a potion."] (:messages (process-action {:level 1 :room [0 0] :action "d" :potion 1})))
     (should= ["Inventory:\n1 Potions\n1 Keys"] (:messages (process-action {:level 1 :room [0 0] :action "i" :potion 1 :key 1})))
     )
   )
