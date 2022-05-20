@@ -56,8 +56,7 @@
   (= room (vec (last (keys level)))))
 
 (defn next-dungeon [state]
-  (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
-      (update :level inc)
+  (-> (update state :level inc)
       (core/add-message (core/blue-text "Next dungeon!"))))
 
 (defn key-room? [room level]
@@ -71,14 +70,12 @@
     (contains? (set items) :potion)))
 
 (defn potion-room [state new-x new-y]                       ;; TODO - CRM: getting issue when going into potion room, exiting program, and then going back in
-  (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
-      (update :potion inc)
+  (-> (update state :potion inc)
       (assoc :room [new-x new-y])
       (core/add-message (core/blue-text "You found a potion!"))))
 
 (defn key-room [state new-x new-y]
-  (-> (core/add-message state (core/color-text "1;42" (str "HP: " (:hp state))))
-      (update :key inc)
+  (-> (update state :key inc)
       (assoc :room [new-x new-y])
       (core/add-message (core/blue-text "You found a key!"))))
 

@@ -193,7 +193,7 @@
 
 (defn start-battle [state mob]
   (let [state (-> (assoc state :battle? true)
-                  (conj :mobs mob)
+                  (conj (:mobs state) mob)
                   (core/add-message (str "You are about to fight a " (:name mob) ",")))]
     (if (= (initiative-roll) "first")
       (let [state (assoc state :initiative :player)] state)

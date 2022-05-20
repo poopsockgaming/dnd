@@ -18,7 +18,7 @@
   (->> (shell/sh "/bin/sh" "-c" "clear <  /dev/null") :out (print "")))
 
 (defn save! [state]
-  (spit (:player state) state)
+  (spit (get-in state [:player :name]) state)
   state)
 
 (defn dice-roll [sides]

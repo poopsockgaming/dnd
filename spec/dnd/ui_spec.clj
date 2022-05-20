@@ -16,9 +16,6 @@
     (with-in-str "n"
     (should= {:action "n"} (ui/get-user-action {:action "e"}))))
 
-  (it "test"
-    (should= "0\n" (with-out-str (ui/update {:messages ["0"]}))))
-
 
 
 

@@ -28,7 +28,7 @@
         (should= 12 (:enemy-ac result))
         (should= 4 (:enemy-damage result))
         (should= :player (:initiative result))
-        (should-not-contain :name result)
+        (should-not-contain (get-in state-level1 [:player :name]) result)
         (should-contain "You are about to fight a kobold," (:messages result)))))
 
   (it "start battle - mob goes first"

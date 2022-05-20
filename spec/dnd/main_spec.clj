@@ -6,9 +6,9 @@
             [dnd.core :as core]
             [dnd.ui :as ui]))
 
-(def state-level1 {:room [0 0] :player "test" :hp 10 :ac 12 :damage 5 :potion 0 :key 0 :level 1 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
-(def state-level2 {:room [0 1] :player "test" :hp 10 :ac 12 :damage 5 :potion 1 :key 0 :level 2 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
-(def state-level3 {:room [0 1] :player "test" :hp 10 :ac 12 :damage 0 :potion 1 :key 0 :level 3 :battle 1 :enemy-hp 10 :enemy-ac 0 :enemy-damage 0 :initiative :player})
+(def state-level1 {:room [0 0] :player {:name "test" :hp 10 :ac 12 :damage 5} :potion 0 :key 0 :level 1 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
+(def state-level2 {:room [0 1] :player {:name "test" :hp 10 :ac 12 :damage 5} :potion 1 :key 0 :level 2 :battle 1 :enemy-hp 0 :enemy-ac 0 :enemy-damage 0 :initiative :player})
+(def state-level3 {:room [0 1] :player {:name "test" :hp 10 :ac 12 :damage 0} :potion 1 :key 0 :level 3 :battle 1 :enemy-hp 10 :enemy-ac 0 :enemy-damage 0 :initiative :player})
 (describe "main"
 
   (around [it] (with-redefs [core/clear-terminal (fn [])
@@ -71,17 +71,17 @@
 
   (it "potion room"
     (let [result (potion-room state-level2 -1 0)]
-      (should= "You found a potion!" (second (:messages result)))
+      (should= "You found a potion!" (first (:messages result)))
       (should= 2 (:potion result))))
 
   (it "key room"
     (let [result (key-room state-level3 -1 0)]
-      (should= "You found a key!" (second (:messages result)))
+      (should= "You found a key!" (first (:messages result)))
       (should= 1 (:potion result))))
 
   (it "next dungeon"
     (let [result (next-dungeon state-level1)]
-      (should= ["HP: 10" "Next dungeon!"] (:messages result))
+      (should= ["Next dungeon!"] (:messages result))
       (should= 2 (:level result))))
 
   (it "drop item movement"
@@ -144,7 +144,7 @@
                   (should= ["Inventory:\n0 Potions\n0 Keys"] (:messages (core/do-inventory state-level1)))))
 
   (it "save!"
-    (should= {:key 0, :ac 12, :battle 1, :initiative :player, :level 1, :damage 5, :enemy-hp 0, :enemy-damage 0, :player "test", :enemy-ac 0, :hp 10, :room [0 0], :potion 0} (core/save! state-level1)))
+    (should= {:key 0, :battle 1, :initiative :player, :level 1, :enemy-hp 0, :enemy-damage 0, :player {:name "test", :hp 10, :ac 12, :damage 5}, :enemy-ac 0, :room [0 0], :potion 0} (core/save! state-level1)))
 
   (it "potion roll"
     (should-contain (core/dice-roll 12) #{1 2 3 4 5 6 7 8 9 10 11 12}))
@@ -175,7 +175,7 @@
     (should= ["Inventory:\n Potions\n Keys"] (:messages (process-action {:battle? true :action "i"})))
     (should= ["Taking health potion!"] (:messages (process-action {:hp 5 :potion 1 :battle? true :action "q"})))
     (with-redefs [(core/dice-roll (fn [_] 19))]
-      (should= ["You scratch the enemy for 1 damage!"] (:messages (process-action {:battle? true :enemy-ac 1 :enemy-hp 10 :damage 1 :action "a"}))))
+      (should= ["You scratch the enemy for 1 damage!"] (:messages (process-action {:battle? true :enemy-ac 0 :enemy-hp 10 :damage 1 :action "a"}))))
       (should= ["Location: 0 1"] (:messages (process-action {:level 1 :room [0 0] :action "n"})))
     (should= ["You dropped a potion."] (:messages (process-action {:level 1 :room [0 0] :action "d" :potion 1})))
     (should= ["Inventory:\n1 Potions\n1 Keys"] (:messages (process-action {:level 1 :room [0 0] :action "i" :potion 1 :key 1})))

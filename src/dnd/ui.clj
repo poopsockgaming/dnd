@@ -32,8 +32,8 @@
 (defn update [state]
   (core/clear-terminal)
   (if (:battle? state)
-    (println (core/color-text "42" (str "Your HP: " (:hp state) "          " "Enemy HP: " (:enemy-hp state) "\n")))
-    (do (println (core/color-text "1;42" (str "HP: " (:hp state))))
+    (println (core/color-text "42" (str "Your HP: " (get-in state [:player :hp]) "          " "Enemy HP: " (get-in state [:mobs :hp]) "\n")))
+    (do (println (core/color-text "1;42" (str "HP: " (get-in state [:player :hp]))))
         (direction? state)))
   (doseq [message (:messages state)] (println message)))
 
